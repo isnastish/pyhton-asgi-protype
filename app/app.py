@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any
 from yarl import URL
 import logging
 
+# True when writing code in vscode, false otherwise
 if TYPE_CHECKING:
     from asgiref.typing import (
         Scope,
@@ -11,13 +12,16 @@ if TYPE_CHECKING:
         LifespanScope, 
     )
 
-_log = logging.getLogger(__name__)
+# configure logging level
+logging.basicConfig(level=logging.DEBUG)
+
+# create logger
+_logger = logging.getLogger(__name__)
+
 
 class App:
-    storage: dict[str, str] = {}
-
     def __init__(self) -> None:
-        pass
+        self._storage: dict[str, str] = {}
 
     async def _handle_http_protocol(self, scope: "HTTPScope", receive: "ASGIReceiveCallable", send: "ASGISendCallable") -> None:
         """Handle http calls"""
@@ -25,7 +29,7 @@ class App:
         if method not in ("PUT", "GET"):
             raise RuntimeError(f"Unsupported method {scope['method']}")
 
-        if method == "GET": # get value from the storage 
+        if method == "GET":
             url = scope["path"]
             print(f"{url=}")
 
@@ -47,7 +51,7 @@ class App:
                 "more_body": False,
             })
 
-        elif method == "PUT": # put value into the storage
+        elif method == "PUT":
             url = scope["path"]
             print(f"{url=}")
         
@@ -67,10 +71,10 @@ class App:
     async def __call__(self, scope: "Scope", receive: "ASGIReceiveCallable", send: "ASGISendCallable") -> Any:
         try:
             if scope["type"] == "lifespan":
-                _log.info("lifespan protocol is used")
+                _logger.info("lifespan protocol is used")
                 await self._handle_lifespan_protocol(scope, receive, send)
             elif scope["type"] == "http":
-                _log.info("http protocol is used")
+                _logger.info("http protocol is used")
                 await self._handle_http_protocol(scope, receive, send)
             else:
                 raise RuntimeError("Unknown ASGI protocol type", scope["type"])
@@ -78,5 +82,6 @@ class App:
         except Exception as ex:
             print(ex)
 
+# this would be invoked by the granian server
 app = App()
             
