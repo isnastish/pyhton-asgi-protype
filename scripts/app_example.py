@@ -2,7 +2,11 @@ import aiohttp
 import asyncio
 from yarl import URL
 
-from aiohttp import TraceConfig  
+from aiohttp import (
+    TraceConfig, 
+    TraceResponseChunkReceivedParams, 
+    TraceRequestChunkSentParams
+)  
 
 class Client:
     def __init__(self) -> None:
@@ -14,16 +18,20 @@ async def on_request_start(session, trace_ctx, params) -> None:
 async def on_request_end(session, trace_ctx, params) -> None:
     print("Request ended")
 
-async def on_request_chunk_sent(session, trace_ctx, params) -> None:
+async def on_request_chunk_sent(session, trace_ctx, params: TraceRequestChunkSentParams) -> None:
     """"""
+    print(f"sent chunk {params.chunk}")
 
-async def on_request_chunk_received(session, trace_ctx, params) -> None:
+async def on_request_chunk_received(session, trace_ctx, params: TraceResponseChunkReceivedParams) -> None:
     """"""
+    print(f"received chunk {params.chunk}")
+
 
 # TODO: Implement TraceConfig    
 trace_config = TraceConfig()
 trace_config.on_request_start.append(on_request_start)
 trace_config.on_request_end.append(on_request_end)
+
 
 async def main() -> None:
     async with aiohttp.ClientSession(base_url="http://localhost:5051", trace_configs=[trace_config]) as session:
