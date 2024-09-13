@@ -11,17 +11,17 @@ from aiohttp import (
 )  
 
 
-async def on_request_start(session, trace_ctx, params) -> None:
+async def on_request_start(session: aiohttp.ClientSession, trace_ctx, params) -> None:
     print("Request started")
 
-async def on_request_end(session, trace_ctx, params) -> None:
+async def on_request_end(session: aiohttp.ClientSession, trace_ctx, params) -> None:
     print("Request ended")
 
-async def on_request_chunk_sent(session, trace_ctx, params: TraceRequestChunkSentParams) -> None:
+async def on_request_chunk_sent(session: aiohttp.ClientSession, trace_ctx, params: TraceRequestChunkSentParams) -> None:
     """"""
     print(f"sent chunk {params.chunk}")
 
-async def on_request_chunk_received(session, trace_ctx, params: TraceResponseChunkReceivedParams) -> None:
+async def on_request_chunk_received(session: aiohttp.ClientSession, trace_ctx, params: TraceResponseChunkReceivedParams) -> None:
     """"""
     print(f"received chunk {params.chunk}")
 
@@ -29,6 +29,8 @@ async def on_request_chunk_received(session, trace_ctx, params: TraceResponseChu
 _trace_config = TraceConfig()
 _trace_config.on_request_start.append(on_request_start)
 _trace_config.on_request_end.append(on_request_end)
+_trace_config.on_request_chunk_sent.append(on_request_chunk_sent)
+_trace_config.on_request_chunk_received.append(on_request_chunk_received)
 
 
 class Client:
@@ -62,8 +64,7 @@ class Client:
 
 async def main() -> None:
     async with Client() as client:
-        url = URL("/api/v1/storage/") 
-        async with client.get(url=url.path) as resp:
+        async with client.get(url="/api/v1/storage/") as resp:
             if resp.ok:
                 print("Status: ", resp.status)
                 body = await resp.read()
