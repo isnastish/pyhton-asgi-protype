@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import random # for data generation
+import json
 from yarl import URL
 from contextlib import AsyncExitStack
 from typing import Optional
@@ -65,23 +66,42 @@ class Client:
 
 async def main() -> None:
     async with Client() as client:
-        async with client.get(url="/api/v1/storage/") as resp:
-            if resp.ok:
-                print("Status: ", resp.status)
-                body = await resp.read()
-                print("body: ", str(body))
-            else:
-                resp.raise_for_status() 
-            
+        # make a PUT request
         data: bytes = random.randbytes(1024)  
         headers = {
             "content-type": "application/octet-stream"
         }
-
-        async with client.put(url="/api/v1/storage/", data=data, headers=headers) as resp:
+        url = URL("/api/v1/storage/key") # .with_query({"key": "hello world"})
+        async with client.put(url=url, data=data, headers=headers) as resp:
+            resp: aiohttp.ClientResponse
             # NOTE: We don't need to check if not resp.ok, it's already done by raise_for_status() procedure
             resp.raise_for_status()
             logger.info({"status": resp.status})
+
+        # make a GET request
+        async with client.get(url="/api/v1/storage/key") as resp:
+            resp: aiohttp.ClientResponse
+            if resp.ok:
+                body = await resp.read()
+                logger.info({"status": resp.status, "body": str(body)})
+            else:
+                resp.raise_for_status() 
             
-            
+        # make a DELETE request
+        async with client.delete(url="/api/v1/storage/key") as resp:
+            resp: aiohttp.ClientResponse
+            if not resp.ok:
+                await resp.read()
+        
+        # get the whole storage
+        # async with client.get(url="/api/storage/") as resp:
+            # resp: aiohttp.ClientResponse
+            # if resp.ok:
+                # body = await resp.read()
+                # if content_type := resp.headers.get("content-type", None):
+                    # if content_type == "application/json":
+                        # storage = json.loads(body)
+                        # logger.info({"storage": storage})
+
+
 asyncio.run(main())

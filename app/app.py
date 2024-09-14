@@ -1,4 +1,4 @@
-import logging
+# import logging
 import json
 from typing import TYPE_CHECKING, Any, Optional
 from yarl import URL
@@ -6,7 +6,6 @@ from http import HTTPMethod, HTTPStatus
 from loguru import logger
 
 
-# True when writing code in vscode, false otherwise
 if TYPE_CHECKING:
     from asgiref.typing import (
         Scope,
@@ -19,7 +18,40 @@ if TYPE_CHECKING:
 
 class ASGIApp:
     def __init__(self) -> None:
-        self._storage: dict[str, str] = {}
+        self._storage: dict[str, Any] = {}
+
+
+    async def _get_handler(self, scope: "HTTPScope", send: "ASGISendCallable") -> None:
+        """Get value from the storage"""
+        key = URL(scope["path"]).parts[-1]
+        logger.info({"key": key})
+        if v := self._storage.get(key, None):
+            await self._send_response(HTTPStatus.OK, send, body=v)
+        else: 
+            await self._send_response(HTTPStatus.NOT_FOUND, send, body=f"key {key} doesn't exist")
+    
+    
+    async def _put_handler(self, scope: "HTTPScope", send: "ASGISendCallable", receive: "ASGIReceiveCallable") -> None:
+        """Put value into a storage"""
+        body = await self._read_body(receive)
+        key = URL(scope["path"]).parts[-1]
+        logger.info({"key": key, "value": body})
+        self._storage[key] = body
+
+        await self._send_response(HTTPStatus.ACCEPTED, send)
+
+
+    async def _del_handler(self, scope: "HTTPScope", send: "ASGISendCallable") -> None:
+        """Delete value from the storage"""
+        key = URL(scope["path"]).parts[-1]
+        try:
+            v = self._storage.pop(key)
+        except KeyError:
+            await self._send_response(HTTPStatus.NOT_FOUND, send, body=f"key {key} doesn't exist") 
+            return
+
+        await self._send_response(HTTPStatus.OK, send)
+
 
     async def _read_body(self, receive: "ASGIReceiveCallable") -> bytes:
         """Read request body"""
@@ -42,8 +74,8 @@ class ASGIApp:
             else:
                 raise RuntimeError("Unknown ASGIN event", msg["type"])
                 
-
         return b"".join(body_chunks)
+        
         
     async def _send_response(self, http_status: HTTPStatus, send: "ASGISendCallable", body: bytes | str | dict = b"", headers: Optional[dict[str, str]] = None) -> None:
         """Send response to the server"""
@@ -76,18 +108,23 @@ class ASGIApp:
         if method not in (HTTPMethod.PUT, HTTPMethod.GET, HTTPMethod.POST, HTTPMethod.DELETE):
             raise RuntimeError(f"Unsupported method {scope['method']}")
 
-        logger.info({"url": scope["path"]})
-
         if method == HTTPMethod.GET:
-            logger.info({"method": HTTPMethod.GET})
-            await self._send_response(HTTPStatus.OK, send, )
+            logger.info({"method": HTTPMethod.GET, "url": scope["path"]})
+
+            # GET data from the whole storage 
+            if scope["path"].removesuffix("/") == "/api/storage":
+                storage = self._storage.copy() 
+                await self._send_response(HTTPStatus.OK, send, body=storage)
+            else:
+                await self._get_handler(scope, send)
 
         elif method == HTTPMethod.PUT:
-            logger.info({"method": HTTPMethod.PUT})
-            body = await self._read_body(receive)
-            print(f"{body=}")
-
-            await self._send_response(HTTPStatus.ACCEPTED, send)
+            logger.info({"method": HTTPMethod.PUT, "url": scope["path"]})
+            await self._put_handler(scope, send, receive)
+        
+        elif method == HTTPMethod.DELETE:
+            logger.info({"method": HTTPMethod.DELETE, "url": scope["path"]})
+            await self._del_handler(scope, send)
         
 
     async def _handle_lifespan_protocol(self, scope: "LifespanScope", receive: "ASGIReceiveCallable", send: "ASGISendCallable") -> None:
@@ -103,6 +140,7 @@ class ASGIApp:
 
 
     async def __call__(self, scope: "Scope", receive: "ASGIReceiveCallable", send: "ASGISendCallable") -> Any:
+        """Granian server entry point"""
         try:
             if scope["type"] == "lifespan":
                 logger.debug("lifespan protocol is used")
