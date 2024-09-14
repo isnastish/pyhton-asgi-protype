@@ -9,6 +9,7 @@ granian = { version= "*", extras = ["reload", "pname"]} # TODO: Ask Matias about
 yarl = "*"
 aiohttp = "*"
 lz4 = "*"
+loguru = "*"
 
 [dev-packages]
 
