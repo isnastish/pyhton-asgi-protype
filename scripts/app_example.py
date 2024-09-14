@@ -71,10 +71,15 @@ async def main() -> None:
         headers = {
             "content-type": "application/octet-stream"
         }
-        url = URL("/api/v1/storage/key") # .with_query({"key": "hello world"})
-        async with client.put(url=url, data=data, headers=headers) as resp:
+        async with client.put(url="/api/v1/storage/key", data=data, headers=headers) as resp:
             resp: aiohttp.ClientResponse
             # NOTE: We don't need to check if not resp.ok, it's already done by raise_for_status() procedure
+            resp.raise_for_status()
+            logger.info({"status": resp.status})
+        
+        url = URL("/api/v1/storage").with_query({"another_key": "hello world", "one_more_key": "red fox"})
+        async with client.put(url=url) as resp:
+            resp: aiohttp.ClientResponse
             resp.raise_for_status()
             logger.info({"status": resp.status})
 
@@ -87,21 +92,21 @@ async def main() -> None:
             else:
                 resp.raise_for_status() 
             
+        # get the whole storage
+        async with client.get(url="/api/storage/") as resp:
+            resp: aiohttp.ClientResponse
+            if resp.ok:
+                body = await resp.read()
+                if content_type := resp.headers.get("content-type", None):
+                    if content_type == "application/json":
+                        storage = json.loads(body)
+                        logger.info({"storage": storage})
+                        
         # make a DELETE request
         async with client.delete(url="/api/v1/storage/key") as resp:
             resp: aiohttp.ClientResponse
             if not resp.ok:
                 await resp.read()
-        
-        # get the whole storage
-        # async with client.get(url="/api/storage/") as resp:
-            # resp: aiohttp.ClientResponse
-            # if resp.ok:
-                # body = await resp.read()
-                # if content_type := resp.headers.get("content-type", None):
-                    # if content_type == "application/json":
-                        # storage = json.loads(body)
-                        # logger.info({"storage": storage})
 
 
 asyncio.run(main())

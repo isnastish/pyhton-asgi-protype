@@ -33,12 +33,22 @@ class ASGIApp:
     
     async def _put_handler(self, scope: "HTTPScope", send: "ASGISendCallable", receive: "ASGIReceiveCallable") -> None:
         """Put value into a storage"""
-        body = await self._read_body(receive)
-        key = URL(scope["path"]).parts[-1]
-        logger.info({"key": key, "value": body})
-        self._storage[key] = body
-
-        await self._send_response(HTTPStatus.ACCEPTED, send)
+        # NOTE: If query string is present, retrieve key-value pair(s) from query string, 
+        # otherwise the last part of the URL should serve as a key and body holds a value.
+        url = URL(scope["path"])
+        if query := url.query:
+            logger.info({"query": query})
+            for k, v in query.items():
+                self._storage[k] = v
+            await self._send_response(HTTPStatus.ACCEPTED, send)
+        elif key := url.parts[-1]:
+            logger.info({"key": key})
+            body = await self._read_body(receive)
+            self._storage[key] = body
+            await self._send_response(HTTPStatus.ACCEPTED, send)
+        else:
+            logger.error(f"url {url} doesn't contain key")
+            await self._send_response(HTTPStatus.INTERNAL_SERVER_ERROR, send, body="key is not specified")
 
 
     async def _del_handler(self, scope: "HTTPScope", send: "ASGISendCallable") -> None:
