@@ -25,6 +25,10 @@ class Person:
         """Get annual income"""
         return self.salary * 12
     
+    @advance_rangetest(age=(0, 120))
+    def info(self) -> None:
+        print(f"{self.name} is {self.age} years old")
+
     def give_raise(self, percent: float) -> None:
         """Give salary raise."""
         if percent < 0.0 or percent > 1.0:

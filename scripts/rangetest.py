@@ -15,7 +15,6 @@ def rangetest(*argranges):
         all_args = code.co_varnames[:code.co_argcount]
         func_name = func.__name__
         func_doc_str = func.__doc__
-
         expected_args = list(all_args)
 
         logger.info({
@@ -48,6 +47,12 @@ def advance_rangetest(**argranges):
         all_args = code.co_varnames[:code.co_argcount]
         func_name = func.__name__
 
+        logger.info({
+            "func_name": func_name, 
+            "func.__code__": func.__code__, 
+            "all_args": all_args, 
+        })
+
         def on_call(*pargs, **kwargs): 
             # All pargs match first N expected args by position
             # the rest must be in kargs or be omitted defaults
@@ -55,7 +60,21 @@ def advance_rangetest(**argranges):
             positionals = expected[:len(pargs)]
 
             for (arg_name, (low, high)) in argranges.items():
-                pass
+                if arg_name in kwargs:
+                    # was passed by name
+                    logger.info({"arg_name": arg_name})
+
+                    if kwargs[arg_name] < low or kwargs[arg_name] > high:
+                        raise TypeError(f"{func_name} Argument {arg_name} is out of range [{low}, {high}]")
+
+                elif arg_name in positionals: 
+                    # was passed by position
+                    position = positionals.index(arg_name)
+                    if pargs[position] < low or pargs[position] > high:
+                        raise TypeError(f"{func_name} Argument {arg_name} is out of range [{low}, {high}]")
+                else:
+                    # not passed: default
+                    logger.info(f"Argument {arg_name} defaulted")
 
             return func(*pargs, **kwargs)
         
