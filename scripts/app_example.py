@@ -14,18 +14,21 @@ from aiohttp import (
 
 from loguru import logger 
 
+
 async def on_request_start(session: aiohttp.ClientSession, trace_ctx, params) -> None:
     logger.debug("Request started")
+
 
 async def on_request_end(session: aiohttp.ClientSession, trace_ctx, params) -> None:
     logger.debug("Request ended")
 
+
 async def on_request_chunk_sent(session: aiohttp.ClientSession, trace_ctx, params: TraceRequestChunkSentParams) -> None:
-    print(f"sent chunk {params.chunk}")
+    logger.debug(f"sent chunk {params.chunk}")
+
 
 async def on_request_chunk_received(session: aiohttp.ClientSession, trace_ctx, params: TraceResponseChunkReceivedParams) -> None:
-    """"""
-    print(f"received chunk {params.chunk}")
+    logger.debug(f"received chunk {params.chunk}")
 
 
 _trace_config = TraceConfig()
@@ -107,6 +110,11 @@ async def main() -> None:
             resp: aiohttp.ClientResponse
             if not resp.ok:
                 await resp.read()
+
+        # clear the whole storage
+        async with client.delete(url="/api/v1/storage") as resp:
+            resp.raise_for_status()
+            logger.info({"status": resp.status})
 
 
 asyncio.run(main())

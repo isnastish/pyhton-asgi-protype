@@ -1,4 +1,3 @@
-# import logging
 import json
 from typing import TYPE_CHECKING, Any, Optional
 from yarl import URL
@@ -15,11 +14,10 @@ if TYPE_CHECKING:
         LifespanScope, 
     )
 
-
 class ASGIApp:
     def __init__(self) -> None:
         self._storage: dict[str, Any] = {}
-
+        
 
     async def _get_handler(self, scope: "HTTPScope", send: "ASGISendCallable") -> None:
         """Get value from the storage"""
@@ -121,8 +119,11 @@ class ASGIApp:
         if method == HTTPMethod.GET:
             logger.info({"method": HTTPMethod.GET, "url": scope["path"]})
 
+            # We whould have to get a book's id somehow.
+
             # GET data from the whole storage 
-            if scope["path"].removesuffix("/") == "/api/storage":
+            if scope["path"].removesuffix("/") == "/api/v1/storage":
+                logger.info("retrive the whole storage")
                 storage = self._storage.copy() 
                 await self._send_response(HTTPStatus.OK, send, body=storage)
             else:
@@ -134,7 +135,15 @@ class ASGIApp:
         
         elif method == HTTPMethod.DELETE:
             logger.info({"method": HTTPMethod.DELETE, "url": scope["path"]})
-            await self._del_handler(scope, send)
+            # NOTE: If the path doesn't contain a key, 
+            # that signifies that the whole storage should be cleared. 
+            if scope["path"].removesuffix("/") == "/api/v1/storage":
+                # NOTE: This should require JWT authentication
+                logger.debug("Removed all items from the storage")
+                self._storage.clear()
+                await self._send_response(HTTPStatus.OK, send)
+            else:
+                await self._del_handler(scope, send)
         
 
     async def _handle_lifespan_protocol(self, scope: "LifespanScope", receive: "ASGIReceiveCallable", send: "ASGISendCallable") -> None:
