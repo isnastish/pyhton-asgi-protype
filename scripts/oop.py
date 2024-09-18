@@ -1,5 +1,6 @@
 from loguru import logger
 from typing import TYPE_CHECKING
+from typing import Any
 
 
 class Person:
@@ -75,14 +76,27 @@ class FirstClass:
 
 class SecondClass(FirstClass):
     # set_data method is inherited
-
     def display(self) -> None:
         print(f"SecondClass's data {self.data}")
 
 
+class ThirdClass(SecondClass):
+    def __init__(self, value: int) -> None:
+        self.data = value
+    
+    def __add__(self, other: Any) -> "ThirdClass":
+        logger.info("Invoking __add__ method on ThirdClass's instance")
+        return ThirdClass(self.data + other.data)
+    
+    def __str__(self) -> str:
+        logger.info("Invoking __str__ method on ThirdClass's instance")
+        # invoked when print() and str()
+        return f"[ThirdClass {self.data}]"
+
+
 def run_script() -> None:
     """Run the testing script"""
-    accountant = Person("Boris", 24, "Yew York city, 56", "boris@gmail.com")
+    accountant = Person("Boris", 24, "Yew York city", "boris@gmail.com")
     obj_str = str(accountant)
     print(obj_str)
 
@@ -111,8 +125,20 @@ def run_script() -> None:
     third_employee = first_employee + second_employee
     print(f"third_employee salary: {third_employee.salary}")
 
+    third_class = ThirdClass(1111)
+    print(third_class)
+
+    # print ThirdClass's variables
+    print(f"{third_class.__dict__.keys()=}")
+
+    # exclude all special methods
+    vars = [key for key in third_employee.__dict__.keys() if not key.startswith("__")]  
+    print(f"{vars=}")
+
+    print(f"{third_employee.__dict__.keys()}")
+
+    print(third_class.__class__)
+
 
 if __name__ == '__main__':
     run_script()
-
-
