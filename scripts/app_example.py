@@ -1,5 +1,7 @@
 import aiohttp
 import asyncio
+import random # for data generation
+import json
 from yarl import URL
 from contextlib import AsyncExitStack
 from typing import Optional
@@ -10,27 +12,30 @@ from aiohttp import (
     TraceRequestChunkSentParams
 )  
 
+from loguru import logger 
+
 
 async def on_request_start(session: aiohttp.ClientSession, trace_ctx, params) -> None:
-    print("Request started")
+    logger.debug("Request started")
+
 
 async def on_request_end(session: aiohttp.ClientSession, trace_ctx, params) -> None:
-    print("Request ended")
+    logger.debug("Request ended")
+
 
 async def on_request_chunk_sent(session: aiohttp.ClientSession, trace_ctx, params: TraceRequestChunkSentParams) -> None:
-    """"""
-    print(f"sent chunk {params.chunk}")
+    logger.debug(f"sent chunk {params.chunk}")
+
 
 async def on_request_chunk_received(session: aiohttp.ClientSession, trace_ctx, params: TraceResponseChunkReceivedParams) -> None:
-    """"""
-    print(f"received chunk {params.chunk}")
+    logger.debug(f"received chunk {params.chunk}")
 
 
 _trace_config = TraceConfig()
 _trace_config.on_request_start.append(on_request_start)
 _trace_config.on_request_end.append(on_request_end)
-_trace_config.on_request_chunk_sent.append(on_request_chunk_sent)
-_trace_config.on_request_chunk_received.append(on_request_chunk_received)
+# _trace_config.on_response_chunk_sent.append(on_request_chunk_sent)
+# _trace_config.on_response_chunk_received.append(on_request_chunk_received)
 
 
 class Client:
@@ -64,12 +69,52 @@ class Client:
 
 async def main() -> None:
     async with Client() as client:
-        async with client.get(url="/api/v1/storage/") as resp:
+        # make a PUT request
+        data: bytes = random.randbytes(1024)  
+        headers = {
+            "content-type": "application/octet-stream"
+        }
+        async with client.put(url="/api/v1/storage/key", data=data, headers=headers) as resp:
+            resp: aiohttp.ClientResponse
+            # NOTE: We don't need to check if not resp.ok, it's already done by raise_for_status() procedure
+            resp.raise_for_status()
+            logger.info({"status": resp.status})
+        
+        url = URL("/api/v1/storage").with_query({"another_key": "hello world", "one_more_key": "red fox"})
+        async with client.put(url=url) as resp:
+            resp: aiohttp.ClientResponse
+            resp.raise_for_status()
+            logger.info({"status": resp.status})
+
+        # make a GET request
+        async with client.get(url="/api/v1/storage/key") as resp:
+            resp: aiohttp.ClientResponse
             if resp.ok:
-                print("Status: ", resp.status)
                 body = await resp.read()
-                print("body: ", str(body))
+                logger.info({"status": resp.status, "body": str(body)})
             else:
                 resp.raise_for_status() 
             
+        # get the whole storage
+        async with client.get(url="/api/storage/") as resp:
+            resp: aiohttp.ClientResponse
+            if resp.ok:
+                body = await resp.read()
+                if content_type := resp.headers.get("content-type", None):
+                    if content_type == "application/json":
+                        storage = json.loads(body)
+                        logger.info({"storage": storage})
+                        
+        # make a DELETE request
+        async with client.delete(url="/api/v1/storage/key") as resp:
+            resp: aiohttp.ClientResponse
+            if not resp.ok:
+                await resp.read()
+
+        # clear the whole storage
+        async with client.delete(url="/api/v1/storage") as resp:
+            resp.raise_for_status()
+            logger.info({"status": resp.status})
+
+
 asyncio.run(main())

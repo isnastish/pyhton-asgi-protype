@@ -1,7 +1,10 @@
 # Article: https://medium.com/azure-tutorials/a-deep-dive-into-python-logging-practical-examples-for-developers-ca45a072e709
 import logging
+import logging.config
 import traceback
 import json
+
+from typing import Any
 
 # 1. Loggers (used by python modules) 
 
@@ -77,3 +80,16 @@ class LogAugmentationFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         return True
     
+# TODO: Ask Matias whether it's ok to set logging config 
+# in multiple places.
+_LOGGING_CONFIG: dict[str, Any] = {
+    "version": 1, 
+    "formatters": {
+        "json": {
+            "()": JsonFormatter
+        }, 
+    }, 
+    "disable_existing_loggers": False, 
+}
+
+logging.config.dictConfig(_LOGGING_CONFIG)
