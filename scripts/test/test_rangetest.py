@@ -44,8 +44,22 @@ class RangesDecorateTestSuite(TestCase):
         @advance_rangetest(age=(0, 100))
         def pers_info(name: str, age: int) -> None:
             logger.info(f"{name} is {age} years old")
+        
+        @advance_rangetest(month=(1, 12), day=(1, 31), year=(0, 2024))
+        def birthday(month: int, day: int, year: int) -> None:
+            logger.info(f"birthday = {month}.{day}.{year}")
 
+        # invalid 
         with self.assertRaises(TypeError) as exc:
             pers_info("Ivan", 444)
-
-            
+            logger.info({"Exception": str(exc)})
+        
+        # invalid month
+        with self.assertRaises(TypeError) as exc:
+            birthday(55, 2, 2024)
+            logger.info({"Exception": str(exc)})
+        
+        # invalid day
+        with self.assertRaises(TypeError) as exc:
+            birthday(6, 55, 2019)
+            logger.info({"Exception": str(exc)})

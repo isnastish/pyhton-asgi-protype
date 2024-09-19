@@ -81,3 +81,57 @@ def advance_rangetest(**argranges):
         return on_call
     
     return on_decorator
+
+
+def typecheck(**argchecks):
+    """Decorator for type checking"""
+
+    logger.info(
+        {
+            "argchecks": argchecks
+        }
+    )
+
+    def on_decorator(func: Callable[[Any], Any]):
+        code = func.__code__
+        all_args = code.co_varnames[:code.co_argcount]
+        func_name = func.__name__
+
+        logger.info(
+            {
+                "code": code, 
+                "all_args": all_args, 
+                "func_name": func_name
+            }
+        )
+
+        def on_call(*pargs, **kwargs):
+            # We should have the same amount of positional 
+            # arguments as func takes
+            positionals = list(all_args)[:len(pargs)]
+
+            logger.info(
+                {
+                    "positionals": positionals
+                }
+            )
+
+            for (argname, type) in argchecks.items():
+                if argname in kwargs:
+                    if not isinstance(kwargs[argname], type):
+                        raise TypeError(f"Invalid type {type}") 
+                
+                elif argname in positionals:
+                    # get index of the positional argument by name, 
+                    # if name is not found, ValueError is raised
+                    position = positionals.index(argname)
+                    if not isinstance(pargs[position], type):
+                        raise TypeError(f"Invalid type {type}") 
+                else: pass # not passed: default
+                                
+            # at the end
+            return func(*pargs, **kwargs)
+        
+        return on_call
+    
+    return on_decorator
